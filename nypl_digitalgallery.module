@@ -1,0 +1,98 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ *   Add searching of The New York Public Library Digital Gallery from a 
+ *   Drupal-based website.
+ */
+
+/**
+ * Implementation of hook_search().
+ */
+function nypl_digitalgallery_search($op = 'search', $keywords = null) {
+  switch ($op) {
+    case 'name':
+      return t('Images');
+    case 'reset':
+      return;
+    case 'search':
+      // Fetch source info.
+      $rows = variable_get('apachesolr_rows', 20);
+
+      // Get pager info.
+      global $pager_total, $pager_page_array, $pager_total_items, $locale;
+      $page = isset($_GET['page']) ? $_GET['page'] : '';
+      $pager_page_array = explode(',', $page);
+
+      // Query sources.
+      list($results, $total) = nypl_digitalgallery_query($keywords, max(0,
+        $pager_page_array[0]) * $rows, $rows);
+
+      /**
+       * @see nypl_digitalgallery_query()
+       */
+      $pager_total_items[0] = $total + 1;
+      $pager_total[0] = ceil($total / $rows);
+      $pager_page_array[0] = max(0, min((int)$pager_page_array[0],
+        ((int)$total) - 1));
+
+      return $results;
+  }
+}
+
+/**
+ * Performs the query on digital gallery.
+ *
+ * @param string $keywords 
+ *   Search terms
+ *
+ * @param int $offset
+ *   Starting point for result set
+ *   
+ * @param int $limit
+ *   Maximum size of result set
+ *
+ * @return array
+ *   Contains an array of results and a string representing an approximate
+ *   total of the number of results
+ */
+function nypl_digitalgallery_query($keywords, $offset, $limit) {
+  
+  $results = array();
+  
+  // Construct the query URL
+  $query_url = 'http://digitalgallery.nypl.org/feeds/dev/atom/?word='. 
+    urlencode($keywords) .'&size=150&imgs='. $limit;  
+  if ($offset > 0) { $query_url .= '&num='. $offset; }
+  
+  // Retrieve the query results
+  $response = simplepie_get($query_url);
+  
+  // Since the response doesn't actually return the total number of results,
+  // infer an approximate number from the atom:link[@rel='last'] value. If
+  // $x = that value, then $x <= $total <= $x + $limit
+  $last_link = $response->get_link(0, 'last');
+  if (preg_match("/num=(\d+)/", $last_link, $match)) { $last = $match[1]; }
+  
+  foreach ($response->get_items() as $item) {
+    // Strip out that extra paragraph tag if it's in there
+    if (preg_match("/<p>(.*)<\/p>/", $item->get_content(), $match)) {
+      $snippet = $match[1];
+    } else {
+      $snippet = $item->get_content();
+    }
+    $results[] = array(
+      // Link to item in DG
+      'link' => $item->get_link(),
+      // Title from item title in feed
+      'title' => $item->get_title(),
+      // Snippet from content (currently preformatted)
+      'snippet' => $snippet,
+      // Set an arbitrary type
+      'type' => 'Image (Digital Gallery)',
+    );
+  }
+  
+  return array($results, $last);
+}
