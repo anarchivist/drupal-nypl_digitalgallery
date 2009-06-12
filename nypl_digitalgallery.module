@@ -62,7 +62,10 @@ function nypl_digitalgallery_query($keywords, $offset, $limit) {
   $results = array();
   
   // Construct the query URL
-  $query_url = 'http://digitalgallery.nypl.org/feeds/dev/atom/?word='. 
+  // per 6/11/09 discussion w. J. Dalton, hitting the rss2 feed means better
+  // performance on DG's side right now as opposed to the atom feed; for some
+  // reason, the atom feed does disk I/O rather than just hitting the index
+  $query_url = 'http://digitalgallery.nypl.org/feeds/dev/rss2/?word='. 
     urlencode($keywords) .'&size=150&imgs='. $limit;  
   if ($offset > 0) { $query_url .= '&num='. $offset; }
   
@@ -72,25 +75,25 @@ function nypl_digitalgallery_query($keywords, $offset, $limit) {
   // Since the response doesn't actually return the total number of results,
   // infer an approximate number from the atom:link[@rel='last'] value. If
   // $x = that value, then $x <= $total <= $x + $limit
-  $last_link = $response->get_link(0, 'last');
+  foreach ($response->get_channel_tags(SIMPLEPIE_NAMESPACE_ATOM_10, "link")
+    as $chanlink) {
+    if ($chanlink['attribs'][NULL]['rel'] == 'last') {
+      $last_link = $chanlink['attribs'][NULL]['href'];
+    }
+  }
   if (preg_match("/num=(\d+)/", $last_link, $match)) { $last = $match[1]; }
   
   foreach ($response->get_items() as $item) {
-    // Strip out that extra paragraph tag if it's in there
-    if (preg_match("/<p>(.*)<\/p>/", $item->get_content(), $match)) {
-      $snippet = $match[1];
-    } else {
-      $snippet = $item->get_content();
-    }
+    // Getting guid instead of link because it's shorter from the dg rss2 feed
+    $links = $item->get_item_tags(SIMPLEPIE_NAMESPACE_RSS_20, "guid");
     $results[] = array(
-      // Link to item in DG
-      'link' => $item->get_link(),
-      // Title from item title in feed
+      'link' => $links[0]['data'],
       'title' => $item->get_title(),
-      // Snippet from content (currently preformatted)
-      'snippet' => $snippet,
-      // Set an arbitrary type
+      'snippet' => $item->get_description(),
       'type' => 'Image (Digital Gallery)',
+      'extra' => array(
+        'thumbnail' => $item->get_enclosure()->get_thumbnail(),
+      ),
     );
   }
   
