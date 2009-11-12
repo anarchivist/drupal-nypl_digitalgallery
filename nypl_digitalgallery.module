@@ -3,8 +3,7 @@
 
 /**
  * @file
- *   Add searching of The New York Public Library Digital Gallery from a 
- *   Drupal-based website.
+ * Add searching of The New York Public Library Digital Gallery from Drupal.
  */
 
 /**
@@ -44,14 +43,14 @@ function nypl_digitalgallery_search($op = 'search', $keywords = null) {
 /**
  * Performs the query on digital gallery.
  *
- * @param string $keywords 
- *   Search terms
+ * @param $keywords 
+ *   String of search terms
  *
- * @param int $offset
- *   Starting point for result set
+ * @param $offset
+ *   int containing starting point for result set
  *   
- * @param int $limit
- *   Maximum size of result set
+ * @param $limit
+ *   int containing maximum size of result set
  *
  * @return array
  *   Contains an array of results and a string representing an approximate
