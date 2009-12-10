@@ -74,10 +74,12 @@ function nypl_digitalgallery_query($keywords, $offset, $limit) {
   // Since the response doesn't actually return the total number of results,
   // infer an approximate number from the atom:link[@rel='last'] value. If
   // $x = that value, then $x <= $total <= $x + $limit
-  foreach ($response->get_channel_tags(SIMPLEPIE_NAMESPACE_ATOM_10, "link")
-    as $chanlink) {
-    if ($chanlink['attribs'][NULL]['rel'] == 'last') {
-      $last_link = $chanlink['attribs'][NULL]['href'];
+  $chanlinks = $response->get_channel_tags(SIMPLEPIE_NAMESPACE_ATOM_10, "link");
+  if (!empty($chanlinks)) {
+    foreach ($chanlinks as $chanlink) {
+      if ($chanlink['attribs'][NULL]['rel'] == 'last') {
+        $last_link = $chanlink['attribs'][NULL]['href'];
+      }
     }
   }
   if (preg_match("/num=(\d+)/", $last_link, $match)) { $last = $match[1]; }
